@@ -1,0 +1,285 @@
+<html><head><base href="https://andrielle.tech">
+<title>Encurtador de Links - Andrielle</title>
+<style>
+:root {
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --accent-color: #2196f3;
+  --hover-color: #1976d2;
+  --surface-color: #f5f5f5;
+}
+
+[data-theme="dark"] {
+  --bg-color: #121212;
+  --text-color: #ffffff;
+  --accent-color: #64b5f6;
+  --hover-color: #42a5f5;
+  --surface-color: #1e1e1e;
+}
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 20px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  transition: all 0.3s ease;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.theme-toggle {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.theme-toggle:hover {
+  background: var(--hover-color);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+input[type="text"],
+input[type="url"] {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid var(--accent-color);
+  border-radius: 5px;
+  background: var(--surface-color);
+  color: var(--text-color);
+  margin-bottom: 10px;
+}
+
+.btn {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn:hover {
+  background: var(--hover-color);
+}
+
+.links-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 30px;
+}
+
+.links-table th,
+.links-table td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--accent-color);
+}
+
+.copy-btn, .delete-btn {
+  background: transparent;
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-btn:hover, .delete-btn:hover {
+  background: var(--accent-color);
+  color: white;
+}
+
+.alert {
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  display: none;
+}
+
+.alert-success {
+  background: #4caf50;
+  color: white;
+}
+
+.alert-error {
+  background: #f44336;
+  color: white;
+}
+
+.chart-container {
+  margin-top: 30px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Encurtador de Links</h1>
+    <button class="theme-toggle" onclick="toggleTheme()">Alternar Tema</button>
+  </div>
+
+  <div class="alert" id="alert"></div>
+
+  <div class="form-group">
+    <input type="url" id="originalUrl" placeholder="Cole a URL original aqui" required>
+    <input type="text" id="customName" placeholder="Nome personalizado para o link" required>
+    <button class="btn" onclick="createShortLink()">Gerar Link</button>
+  </div>
+
+  <table class="links-table">
+    <thead>
+      <tr>
+        <th>Link Original</th>
+        <th>Link Encurtado</th>
+        <th>Cliques</th>
+        <th>Leads</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="linksTableBody">
+    </tbody>
+  </table>
+
+  <div class="chart-container">
+    <h2>Painel de Acompanhamento</h2>
+    <label for="dateFilter">Filtrar por data:</label>
+    <input type="date" id="dateFilter" onchange="filterData()">
+    <canvas id="performanceChart" width="400" height="200"></canvas>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let linkMetrics = {};
+
+function loadInitialData() {
+  linkMetrics = JSON.parse(localStorage.getItem('linkMetrics') || '{}');
+  updateLinksTable();
+}
+
+function toggleTheme() {
+  const body = document.body;
+  if (body.getAttribute('data-theme') === 'dark') {
+    body.removeAttribute('data-theme');
+  } else {
+    body.setAttribute('data-theme', 'dark');
+  }
+}
+
+function showAlert(message, type) {
+  const alert = document.getElementById('alert');
+  alert.textContent = message;
+  alert.className = `alert alert-${type}`;
+  alert.style.display = 'block';
+  setTimeout(() => {
+    alert.style.display = 'none';
+  }, 3000);
+}
+
+async function createShortLink() {
+  const originalUrl = document.getElementById('originalUrl').value;
+  const customName = document.getElementById('customName').value;
+
+  if (!originalUrl || !customName) {
+    showAlert('Por favor, preencha todos os campos', 'error');
+    return;
+  }
+
+  try {
+    new URL(originalUrl);
+  } catch {
+    showAlert('URL inválida', 'error');
+    return;
+  }
+
+  if (linkMetrics[customName]) {
+    showAlert('Este nome já está em uso', 'error');
+    return;
+  }
+
+  linkMetrics[customName] = {
+    url: originalUrl,
+    clicks: 0,
+    leads: 0,
+    dailyData: []
+  };
+
+  localStorage.setItem('linkMetrics', JSON.stringify(linkMetrics));
+  showAlert('Link criado com sucesso!', 'success');
+  updateLinksTable();
+  document.getElementById('originalUrl').value = '';
+  document.getElementById('customName').value = '';
+}
+
+function updateLinksTable() {
+  const tbody = document.getElementById('linksTableBody');
+  tbody.innerHTML = '';
+
+  Object.entries(linkMetrics).forEach(([name, data]) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${data.url}</td>
+      <td>andrielle.tech/${name}</td>
+      <td>${data.clicks}</td>
+      <td>${data.leads}</td>
+      <td>
+        <button class="copy-btn" onclick="copyLink('${name}')">Copiar</button>
+        <button class="copy-btn" onclick="simulateVisit('${name}')">Visita</button>
+        <button class="copy-btn" onclick="simulateLead('${name}')">Lead</button>
+        <button class="delete-btn" onclick="deleteLink('${name}')">Excluir</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+  updateChart();
+}
+
+function copyLink(name) {
+  const link = `https://andrielle.tech/${name}`;
+  navigator.clipboard.writeText(link)
+    .then(() => showAlert('Link copiado!', 'success'))
+    .catch(() => showAlert('Erro ao copiar link', 'error'));
+}
+
+function simulateVisit(name) {
+  if (linkMetrics[name]) {
+    linkMetrics[name].clicks++;
+    linkMetrics[name].dailyData.push({ date: new Date().toLocaleDateString(), type: 'click' });
+    localStorage.setItem('linkMetrics', JSON.stringify(linkMetrics));
+    updateLinksTable();
+    showAlert('Visita simulada com sucesso!', 'success');
+  }
+}
+
+function simulateLead(name) {
+  if (linkMetrics[name]) {
+    linkMetrics[name].leads++;
+    linkMetrics[name].dailyData.push({ date: new Date().toLocaleDateString(), type: 'lead' });
+    localStorage.setItem('linkMetrics', JSON.stringify(linkMetrics));
+    updateLinksTable();
+    showAlert('Lead simulado com sucesso!', 'success');
+  }
+}
+
+function deleteLink(name) {
+  delete linkMetrics[name
